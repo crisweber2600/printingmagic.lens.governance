@@ -1,0 +1,9 @@
+kind: service
+id: oldversion-printingmagic
+name: PrintingMagic
+domain: oldversion
+service: printingmagic
+status: active
+owner: crisweber2600
+created: '2026-04-08T02:26:50Z'
+updated: '2026-04-08T02:26:50Z'
