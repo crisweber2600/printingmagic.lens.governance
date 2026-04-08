@@ -1,0 +1,8 @@
+# LENS Workbench — Target Project Repository Inventory
+# Add entries here for each repo LENS should manage.
+# Run /onboard to bootstrap clones from this inventory.
+
+repositories:
+  - name: "printingmagic"
+    remote_url: "https://github.com/crisweber2600/printingmagic.git"
+    local_path: "TargetProjects/printingmagic/printingmagic"
