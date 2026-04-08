@@ -1,0 +1,9 @@
+kind: service
+id: newversion-scraper
+name: Scraper
+domain: newversion
+service: scraper
+status: active
+owner: crisweber2600
+created: '2026-04-08T19:33:27Z'
+updated: '2026-04-08T19:33:27Z'
