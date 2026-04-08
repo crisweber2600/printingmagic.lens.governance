@@ -1,0 +1,13 @@
+features:
+- id: oldversion-printingmagic-oldversion
+  domain: oldversion
+  service: printingmagic
+  status: preplan
+  owner: crisweber2600
+  plan_branch: oldversion-printingmagic-oldversion-plan
+  related_features:
+    depends_on: []
+    blocks: []
+    related: []
+  updated_at: '2026-04-08T19:09:20Z'
+  summary: ''
