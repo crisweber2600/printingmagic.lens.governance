@@ -11,13 +11,12 @@ key_decisions:
   - All data writes routed through IInternalApiClient — no direct database access from the scraper
   - Shared browser session pattern (BrowserSessionService singleton) preserved from reference
 open_questions:
-  - Does PrintingMagic.Data.Contracts exist in the new solution? If not, create a minimal DTO project before scraper build.
   - Playwright browser binary provisioning strategy for Aspire Dockerfile vs local dev (playwright install vs bundled binary)
-  - Is the internal API base URL injected via Aspire service discovery or explicit configuration?
 depends_on:
   - newversion-apphost-scaffolding
 blocks: []
 updated_at: "2026-04-09T18:31:00Z"
+adr_count: 6
 ---
 
 # Tech Plan: newversion-scraper-scraper-scaffolding
@@ -99,6 +98,21 @@ Aspire AppHost (PrintingMagic.Aspire)
 ### ADR-5: All data writes through IInternalApiClient
 
 **Decision:** The scraper never writes directly to the database. All scraped data is submitted via `IInternalApiClient` to `PrintingMagic.ApiService`.
+
+### ADR-6: Aspire service discovery for internal API base URL
+
+**Decision:** `InternalApiClient` resolves `PrintingMagic.ApiService` via Aspire service discovery. The `HttpClient` base address is configured as `http+http://apiservice` and the `IServiceCollection` registration calls `.AddServiceDiscovery()`.
+
+**Rationale:** Aspire service discovery is the architecturally preferred approach (see `key_decisions` in the frontmatter). It works transparently in both local Aspire dev (the AppHost injects the resolved endpoint as an environment variable) and any container deployment that retains the Aspire infrastructure. No manual URL management is needed.
+
+**Implementation:**
+- `PrintingMagic.ApiService` is registered in the AppHost under the name `"apiservice"` (story 3-01 confirms this).
+- `InternalApiClient` is registered with `AddHttpClient<IInternalApiClient, InternalApiClient>(c => c.BaseAddress = new Uri("http+http://apiservice"))` followed by `.AddServiceDiscovery()`.
+- No `ApiService:BaseUrl` key is added to `appsettings.json`; the service discovery address is the single source of truth.
+
+**Alternatives rejected:**
+- Explicit `IConfiguration` key (`"ApiService:BaseUrl"`) — manual URL management; breaks in Aspire container environments where the host/port are not known at config-authoring time.
+- Hardcoded URL — violates separation of configuration and code; non-portable across environments.
 
 **Rationale:** Maintains the same architectural boundary as the reference. The API service owns the data model; the scraper is a pure harvesting agent.
 
