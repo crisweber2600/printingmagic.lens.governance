@@ -23,3 +23,15 @@ features:
     related: []
   updated_at: '2026-04-08T19:52:58Z'
   summary: ''
+- id: newversion-scraper-scraper-scaffolding
+  domain: newversion
+  service: scraper
+  status: preplan
+  owner: crisweber2600
+  plan_branch: newversion-scraper-scraper-scaffolding-plan
+  related_features:
+    depends_on: []
+    blocks: []
+    related: []
+  updated_at: '2026-04-09T16:15:12Z'
+  summary: ''
