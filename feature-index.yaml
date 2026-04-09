@@ -26,12 +26,22 @@ features:
 - id: newversion-scraper-scraper-scaffolding
   domain: newversion
   service: scraper
-  status: preplan
+  phase: sprintplan
+  track: express
+  goal: "Deliver a standalone .NET scraper service — ported from the reference Worker — that harvests STLFlix collection and model metadata and stores it ready for downstream processing"
+  status: draft
   owner: crisweber2600
   plan_branch: newversion-scraper-scraper-scaffolding-plan
   related_features:
     depends_on: []
-    blocks: []
+    blocks:
+      - newversion-apphost-scaffolding
     related: []
-  updated_at: '2026-04-09T18:04:40Z'
-  summary: ''
+  updated_at: '2026-04-09T18:33:00Z'
+  docs_present:
+    - business-plan
+    - tech-plan
+    - adversarial-review
+    - sprint-plan
+    - stories
+  summary: 'Port PrintingMagic.Worker STLFlix scraper into a standalone .NET 9 Aspire service using Playwright headless browser'

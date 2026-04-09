@@ -1,14 +1,14 @@
 name: scraper scaffolding
-description: ''
+description: 'Port the STLFlix web scraper from PrintingMagic.Worker (reference codebase) into a standalone .NET 9 Aspire-registered background service using Microsoft.Playwright headless browser automation, harvesting collection and model metadata for downstream processing'
 featureId: newversion-scraper-scraper-scaffolding
 domain: newversion
 service: scraper
-phase: expressplan-complete
+phase: sprintplan
 track: express
 milestones:
-  businessplan: null
-  techplan: null
-  sprintplan: null
+  businessplan: '2026-04-09T18:30:00Z'
+  techplan: '2026-04-09T18:31:00Z'
+  sprintplan: '2026-04-09T18:33:00Z'
   dev-ready: '2026-04-09T18:04:40Z'
   dev-complete: null
 team:
@@ -24,13 +24,22 @@ links:
   pull_request: null
 priority: medium
 created: '2026-04-09T18:04:40Z'
-updated: '2026-04-09T18:04:40Z'
+updated: '2026-04-09T18:33:00Z'
 phase_transitions:
 - phase: preplan
   timestamp: '2026-04-09T18:04:40Z'
   user: crisweber2600
 - phase: expressplan-complete
   timestamp: '2026-04-09T18:04:40Z'
+  user: crisweber2600
+- phase: businessplan
+  timestamp: '2026-04-09T18:30:00Z'
+  user: crisweber2600
+- phase: techplan
+  timestamp: '2026-04-09T18:31:00Z'
+  user: crisweber2600
+- phase: sprintplan
+  timestamp: '2026-04-09T18:33:00Z'
   user: crisweber2600
 docs:
   path: docs/newversion/scraper/newversion-scraper-scraper-scaffolding
