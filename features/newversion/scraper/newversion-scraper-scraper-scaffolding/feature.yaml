@@ -3,7 +3,7 @@ description: 'Port the STLFlix web scraper from PrintingMagic.Worker (reference 
 featureId: newversion-scraper-scraper-scaffolding
 domain: newversion
 service: scraper
-phase: sprintplan
+phase: dev
 track: express
 milestones:
   businessplan: '2026-04-09T18:30:00Z'
@@ -24,7 +24,7 @@ links:
   pull_request: null
 priority: medium
 created: '2026-04-09T18:04:40Z'
-updated: '2026-04-09T18:33:00Z'
+updated: '2026-04-09T18:40:00Z'
 phase_transitions:
 - phase: preplan
   timestamp: '2026-04-09T18:04:40Z'
@@ -40,6 +40,9 @@ phase_transitions:
   user: crisweber2600
 - phase: sprintplan
   timestamp: '2026-04-09T18:33:00Z'
+  user: crisweber2600
+- phase: dev
+  timestamp: '2026-04-09T18:40:00Z'
   user: crisweber2600
 docs:
   path: docs/newversion/scraper/newversion-scraper-scraper-scaffolding
