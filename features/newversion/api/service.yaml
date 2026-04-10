@@ -1,0 +1,9 @@
+kind: service
+id: newversion-api
+name: api
+domain: newversion
+service: api
+status: active
+owner: crisweber2600
+created: '2026-04-10T01:59:12Z'
+updated: '2026-04-10T01:59:12Z'
