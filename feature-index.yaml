@@ -49,3 +49,16 @@ features:
   - stories
   summary: Port PrintingMagic.Worker STLFlix scraper into a standalone .NET 9 Aspire
     service using Playwright headless browser
+- id: newversion-scraper-processing
+  featureId: newversion-scraper-processing
+  domain: newversion
+  service: scraper
+  status: preplan
+  owner: cweber
+  plan_branch: newversion-scraper-processing-plan
+  related_features:
+    depends_on: []
+    blocks: []
+    related: []
+  updated_at: '2026-04-10T16:39:16Z'
+  summary: ''
