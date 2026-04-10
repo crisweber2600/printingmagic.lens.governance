@@ -1,0 +1,9 @@
+kind: service
+id: newversion-processing
+name: processing
+domain: newversion
+service: processing
+status: active
+owner: cweber
+created: '2026-04-10T15:25:48Z'
+updated: '2026-04-10T15:25:48Z'
