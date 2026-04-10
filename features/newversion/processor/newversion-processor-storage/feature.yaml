@@ -1,0 +1,34 @@
+name: storage
+description: ''
+featureId: newversion-processor-storage
+domain: newversion
+service: processor
+phase: preplan
+track: express
+milestones:
+  businessplan: null
+  techplan: null
+  sprintplan: null
+  dev-ready: null
+  dev-complete: null
+team:
+- username: cweber
+  role: lead
+dependencies:
+  depends_on: []
+  depended_by: []
+target_repos: []
+links:
+  retrospective: null
+  issues: []
+  pull_request: null
+priority: medium
+created: '2026-04-10T16:48:15Z'
+updated: '2026-04-10T16:48:15Z'
+phase_transitions:
+- phase: preplan
+  timestamp: '2026-04-10T16:48:15Z'
+  user: cweber
+docs:
+  path: docs/newversion/processor/newversion-processor-storage
+  governance_docs_path: features/newversion/processor/newversion-processor-storage/docs
