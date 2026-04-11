@@ -35,6 +35,24 @@ All automated tests MUST be expressed in **BDD style** (Given / When / Then), an
 
 BDD test files MUST be checked in as `bdd-tests.md` (feature-level) or in a `bdd-tests/` directory (per-story breakdown) alongside the feature's story artifacts. This file documents the BDD scenarios mapped to each story's acceptance criteria.
 
+### Acceptance Criteria Format — Mandatory
+
+Every acceptance criterion written anywhere in this project (stories, PRDs, feature plans, or any planning artifact) MUST be expressed in **Given / When / Then** format:
+
+```
+Given {precondition or initial system state}
+When {action or event}
+Then {expected observable outcome}
+```
+
+Single-line checkbox form is permitted where brevity is required, provided the Given/When/Then structure is still legible:
+
+```
+- [ ] Given {state}, When {action}, Then {outcome}
+```
+
+Free-text acceptance criteria that cannot be mapped to a Given/When/Then structure MUST be rewritten before the artifact is promoted. This rule applies at every planning phase and is enforced at story creation time.
+
 ### BDD → AC Traceability Rule
 
 Each acceptance criterion checkbox in a story file (`- [ ] ...`) MUST have a corresponding `Scenario:` in the BDD test suite. The scenario title SHOULD quote or paraphrase the acceptance criterion verbatim to make traceability explicit.
