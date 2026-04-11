@@ -27,7 +27,7 @@ features:
   featureId: newversion-scraper-scraper-scaffolding
   domain: newversion
   service: scraper
-  phase: sprintplan
+  phase: finalizeplan
   track: express
   goal: Deliver a standalone .NET scraper service — ported from the reference Worker
     — that harvests STLFlix collection and model metadata and stores it ready for

@@ -11,7 +11,7 @@ track: express
 milestones:
   businessplan: '2026-04-09T18:30:00Z'
   techplan: '2026-04-09T18:31:00Z'
-  sprintplan: '2026-04-09T18:33:00Z'
+  finalizeplan: '2026-04-09T18:33:00Z'
   dev-ready: '2026-04-09T18:04:40Z'
   dev-complete: null
 team:

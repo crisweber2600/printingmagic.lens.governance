@@ -8,7 +8,7 @@ track: express
 milestones:
   businessplan: null
   techplan: null
-  sprintplan: null
+  finalizeplan: null
   dev-ready: null
   dev-complete: null
 team:
