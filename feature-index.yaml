@@ -66,12 +66,12 @@ features:
   featureId: newversion-processor-storage
   domain: newversion
   service: processor
-  status: preplan
+  status: archived
   owner: cweber
   plan_branch: newversion-processor-storage-plan
   related_features:
     depends_on: []
     blocks: []
     related: []
-  updated_at: '2026-04-10T16:48:15Z'
+  updated_at: '2026-04-11T17:52:20Z'
   summary: ''
