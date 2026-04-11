@@ -3,12 +3,12 @@ description: ''
 featureId: newversion-processor-storage
 domain: newversion
 service: processor
-phase: techplan-complete
+phase: finalizeplan-complete
 track: full
 milestones:
   businessplan: '2026-04-11T00:00:00Z'
   techplan: '2026-04-11T00:00:00Z'
-  finalizeplan: null
+  finalizeplan: '2026-04-11T00:00:00Z'
   dev-ready: null
   dev-complete: null
 team:
@@ -37,6 +37,9 @@ phase_transitions:
   timestamp: '2026-04-11T00:00:00Z'
   user: cweber
 - phase: techplan-complete
+  timestamp: '2026-04-11T00:00:00Z'
+  user: cweber
+- phase: finalizeplan-complete
   timestamp: '2026-04-11T00:00:00Z'
   user: cweber
 docs:
