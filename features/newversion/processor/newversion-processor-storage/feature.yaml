@@ -3,7 +3,7 @@ description: ''
 featureId: newversion-processor-storage
 domain: newversion
 service: processor
-phase: businessplan-complete
+phase: techplan-complete
 track: full
 milestones:
   businessplan: '2026-04-11T00:00:00Z'
@@ -24,7 +24,7 @@ links:
   pull_request: null
 priority: medium
 created: '2026-04-10T16:48:15Z'
-updated: '2026-04-12T00:00:00Z'
+updated: '2026-04-11T00:00:00Z'
 
 phase_transitions:
 - phase: preplan
@@ -37,7 +37,7 @@ phase_transitions:
   timestamp: '2026-04-11T00:00:00Z'
   user: cweber
 - phase: techplan-complete
-  timestamp: '2026-04-12T00:00:00Z'
+  timestamp: '2026-04-11T00:00:00Z'
   user: cweber
 docs:
   path: docs/newversion/processor/newversion-processor-storage
