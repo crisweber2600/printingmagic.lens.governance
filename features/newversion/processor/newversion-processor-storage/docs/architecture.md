@@ -14,11 +14,11 @@ date: '2026-04-11'
 goal: "Establish a standalone processor service with EF Core storage and MassTransit intake that persists enriched, evidence-backed product records ready for future AI and listing workflows"
 key_decisions:
   - ADR-01 Service SDK is Microsoft.NET.Sdk.Web (Minimal API + MassTransit consumer in one host)
-  - ADR-02 MassTransit intake via ModelProcessingRequestedV1 message added to PrintingMagic.Data.Contracts
+  - ADR-02 MassTransit intake via ModelDiscoveredV1 event in new PrintingMagic.Contracts library
   - ADR-03 Dedicated processor-db on the shared postgres Aspire resource (same instance, isolated database)
   - ADR-04 EF Core migrations applied with MigrateAsync() on startup for local dev; migrations are checked in
   - ADR-05 Processor repo lives at TargetProjects/newversion/processor/ — its own git repo per domain convention
-  - ADR-06 ServiceDefaults is copied from scraper pattern into the processor repo (not shared as NuGet for this sprint)
+  - ADR-06 PrintingMagic.ServiceDefaults packaged as NuGet (in scope this feature); PrintingMagic.Contracts is the new cross-service contracts library
   - ADR-07 Aspire AppHost references the processor via relative #:project directive; registered as "processor"
 open_questions: []
 depends_on:
@@ -45,7 +45,7 @@ updated_at: '2026-04-11T00:00:00Z'
 │  Aspire AppHost (PrintingMagic.Aspire)                          │
 │                                                                   │
 │  ┌──────────────────┐   ModelProcessingRequestedV1   ┌────────────────────┐
-│  │ PrintingMagic    │ ──────────────────────────────▶│ PrintingMagic      │
+│  │ PrintingMagic    │ ─── ModelDiscoveredV1 ─────────▶│ PrintingMagic      │
 │  │ .Scraper         │          RabbitMQ               │ .Processor         │
 │  │                  │                                 │                    │
 │  │ (scraper-db)     │                                 │ (processor-db)     │
@@ -65,7 +65,7 @@ updated_at: '2026-04-11T00:00:00Z'
 **Key boundaries:**
 - `PrintingMagic.Scraper` publishes; `PrintingMagic.Processor` consumes and owns all enriched product persistence.
 - `PrintingMagic.Processor` owns `processor-db` exclusively — no shared table access with scraper or ApiService.
-- `PrintingMagic.Data.Contracts` is the message-contract library shared across both services.
+- `PrintingMagic.Contracts` is the message-contract library shared across both services.
 
 ---
 
@@ -78,7 +78,7 @@ updated_at: '2026-04-11T00:00:00Z'
 | Database access | EF Core 10 + `Npgsql.EntityFrameworkCore.PostgreSQL` | Matches scraper pattern |
 | Aspire DB integration | `Aspire.Npgsql.EntityFrameworkCore.PostgreSQL` | Resolves connection string from Aspire environment |
 | Messaging | MassTransit 8.4.0 + `MassTransit.RabbitMQ` | Existing infra in AppHost; MassTransit consumer for intake |
-| Service defaults | `PrintingMagic.ServiceDefaults` (copied from scraper) | OpenTelemetry, health checks, service discovery |
+| Service defaults | `PrintingMagic.ServiceDefaults` (NuGet package — in scope this feature) | OpenTelemetry, health checks, service discovery |
 | Unit tests | xUnit 2.9.3 + Moq + FluentAssertions | Matches scraper test project (domain constitution: Given/When/Then naming) |
 | Integration tests | `Aspire.Hosting.Testing` (`DistributedApplicationTestingBuilder`) | Domain constitution hard gate |
 
@@ -99,15 +99,15 @@ updated_at: '2026-04-11T00:00:00Z'
 
 ---
 
-### ADR-02 — Intake Mechanism: MassTransit Consumer — `ModelProcessingRequestedV1`
+### ADR-02 — Intake Mechanism: MassTransit Consumer — `ModelDiscoveredV1`
 
 **Context:** OQ-01 left the intake mechanism as a TechPlan decision. Options were HTTP push or queue-based async.
 
-**Decision:** Async queue intake via MassTransit consumer. A new message `ModelProcessingRequestedV1` is added to `PrintingMagic.Data.Contracts`. The scraper publishes this message after the model zip is available. The processor defines a MassTransit consumer that creates `ProcessedProduct` records on receipt.
+**Decision:** Async queue intake via MassTransit consumer. `ModelDiscoveredV1` lives in `PrintingMagic.Contracts`. The scraper publishes this event after the model zip is available. The processor defines a MassTransit consumer that creates `ProcessedProduct` records on receipt.
 
 ```csharp
-// PrintingMagic.Data.Contracts — new message in Contracts.V1.cs
-public record ModelProcessingRequestedV1(
+// PrintingMagic.Contracts — Events/ModelDiscoveredV1.cs
+public record ModelDiscoveredV1(
     int ModelId,
     int CollectionId,
     string SourceUrl,
@@ -119,10 +119,10 @@ public record ModelProcessingRequestedV1(
 - Decouples processor startup/availability from scraper runs.
 - Reuses existing RabbitMQ `message-broker` resource — zero new infrastructure.
 - No direct HTTP service-to-service dependency between scraper and processor (resilient, independently deployable).
-- The scraper already has `IEventPublisher` + MassTransit plumbing for publishing events; adding this message is additive.
+- The scraper already has MassTransit plumbing for publishing events; `ModelDiscoveredV1` is moved from `PrintingMagic.Scraper.Events.Contracts` to `PrintingMagic.Contracts`.
 - The `POST /imports/model` HTTP endpoint remains available as a manual/testing intake path (backed by the same handler logic as the consumer).
 
-**Dev task produced:** Scraper must publish `ModelProcessingRequestedV1` after zip URL is stored (implement in Dev phase, scraper side).
+**Dev task produced:** Scraper must be updated to publish `ModelDiscoveredV1` from `PrintingMagic.Contracts` after zip URL is stored. See §Cross-Repo Dev Tasks.
 
 ---
 
@@ -170,19 +170,31 @@ builder.AddProject<Projects.PrintingMagic_Processor>("processor")
 
 **Decision:** The processor lives at `TargetProjects/newversion/processor/` with its own `.git`. The AppHost references it via `#:project ../../processor/PrintingMagic.Processor/PrintingMagic.Processor.csproj`.
 
-**Cross-repo reference for `Data.Contracts`:** The processor references `Data.Contracts` via a relative path reference — `../../scraper/PrintingMagic.Data.Contracts/PrintingMagic.Data.Contracts.csproj`. This works in local dev and CI (both repos checked out). A NuGet package version of `Data.Contracts` is a future upgrade (not in scope).
+**Workspace layout requirement:** CI and local dev must check out repos under a common parent so relative references resolve correctly:
+```
+<workspace-root>/
+  apphost/
+  contracts/    ← PrintingMagic.Contracts
+  scraper/
+  processor/
+```
+All relative `<ProjectReference>` paths (e.g., `../../contracts/PrintingMagic.Contracts/`) assume this layout. CI pipelines must enforce it.
 
 ---
 
-### ADR-06 — ServiceDefaults: Copied into Processor Repo
+### ADR-06 — ServiceDefaults: NuGet Package (in scope)
 
-**Context:** `PrintingMagic.ServiceDefaults` is in the scraper repo. ServiceDefaults is a shared Aspire library providing OpenTelemetry, health checks, and service discovery.
+**Context:** `PrintingMagic.ServiceDefaults` is currently in the scraper repo and was previously copied per-service. Copying creates silent drift risk across services.
 
-**Decision:** Copy `PrintingMagic.ServiceDefaults` into the processor repo (`TargetProjects/newversion/processor/PrintingMagic.ServiceDefaults/`). This is consistent with the scraper pattern. Converting to a NuGet package is a future concern outside this feature's scope.
+**Decision:** `PrintingMagic.ServiceDefaults` is packaged as a local NuGet package in this feature sprint. The csproj is moved to `TargetProjects/newversion/servicedefaults/` (own git repo, follows domain pattern) with NuGet packaging metadata. Both scraper and processor reference it via a local NuGet feed or `<ProjectReference>` during dev. The copy in the scraper repo is retired once the package is published.
+
+**Trigger for sync (until NuGet packaging lands):** If NuGet packaging is not completed this sprint, a copy is acceptable as a fallback — but a sync task must be added to any ServiceDefaults PR in the scraper to propagate changes to all copies.
 
 ---
 
 ### ADR-07 — Aspire Registration: `"processor"` resource, port auto-assigned
+
+> **Note:** `PrintingMagic.Contracts` is a library, not a runnable project — no `#:project` directive is added for it in AppHost. It is referenced transitively via scraper and processor project references.
 
 **Context:** OQ-03 asked for Aspire registration name and port conventions.
 
@@ -224,7 +236,7 @@ public class ProcessedProduct
     public FinishType? FinishType { get; set; }
     public string? HeroImageUrl { get; set; }
     public ComplianceStatus? ComplianceStatus { get; set; }
-    public bool ListingReady { get; set; } = false;
+    public bool ListingReady { get; set; } = false;  // Always false in this foundation sprint; AI enrichment feature sets to true
 
     // AI provenance (nullable — populated by AI enrichment feature)
     public decimal? Confidence { get; set; }
@@ -327,6 +339,8 @@ public class ProcessorDbContext : DbContext
 | `GET` | `/products/{id:guid}` | Returns full `ProcessedProductDto` for the given product ID. Returns `404` if not found. |
 | `GET` | `/health` | ASP.NET health check endpoint (from `AddServiceDefaults`). |
 
+> **Security note:** All endpoints are intentionally unauthenticated in this foundation sprint. Authentication and authorization are a future feature concern. This is an acknowledged, scoped decision — not an oversight.
+
 ### Request/Response DTOs
 
 ```csharp
@@ -362,19 +376,19 @@ public record GalleryImageDto(Guid Id, string Url, string? BackgroundFamily, int
 ## 6. MassTransit Consumer
 
 ```csharp
-// PrintingMagic.Processor/Consumers/ModelProcessingRequestedConsumer.cs
-public class ModelProcessingRequestedConsumer : IConsumer<ModelProcessingRequestedV1>
+// PrintingMagic.Processor/Consumers/ProcessModelConsumer.cs
+public class ProcessModelConsumer : IConsumer<ModelDiscoveredV1>
 {
     private readonly ProcessorDbContext _db;
-    private readonly ILogger<ModelProcessingRequestedConsumer> _logger;
+    private readonly ILogger<ProcessModelConsumer> _logger;
 
-    public ModelProcessingRequestedConsumer(ProcessorDbContext db, ILogger<ModelProcessingRequestedConsumer> logger)
+    public ProcessModelConsumer(ProcessorDbContext db, ILogger<ProcessModelConsumer> logger)
     {
         _db = db;
         _logger = logger;
     }
 
-    public async Task Consume(ConsumeContext<ModelProcessingRequestedV1> context)
+    public async Task Consume(ConsumeContext<ModelDiscoveredV1> context)
     {
         var msg = context.Message;
         // Idempotent — skip if product already exists for this model ID
@@ -404,7 +418,7 @@ MassTransit registration in `Program.cs`:
 ```csharp
 builder.Services.AddMassTransit(x =>
 {
-    x.AddConsumer<ModelProcessingRequestedConsumer>();
+    x.AddConsumer<ProcessModelConsumer>();
     x.UsingRabbitMq((context, cfg) =>
     {
         var connectionString = builder.Configuration.GetConnectionString("message-broker");
@@ -428,7 +442,7 @@ TargetProjects/newversion/processor/            ← git repo root
 │   ├── PrintingMagic.Processor.csproj          ← Microsoft.NET.Sdk.Web, net10.0
 │   ├── Program.cs
 │   ├── Consumers/
-│   │   └── ModelProcessingRequestedConsumer.cs
+│   │   └── ProcessModelConsumer.cs
 │   ├── Data/
 │   │   ├── ProcessorDbContext.cs
 │   │   ├── Entities/
@@ -454,18 +468,17 @@ TargetProjects/newversion/processor/            ← git repo root
 ├── PrintingMagic.Processor.Tests/
 │   ├── PrintingMagic.Processor.Tests.csproj    ← xUnit, no Aspire hosting
 │   └── Consumers/
-│       └── ModelProcessingRequestedConsumerTests.cs   ← unit tests (BDD naming)
+│       └── ProcessModelConsumerTests.cs        ← unit tests (BDD naming)
 │
 ├── PrintingMagic.Processor.Tests.Integration/
 │   ├── PrintingMagic.Processor.Tests.Integration.csproj  ← Aspire.Hosting.Testing
 │   └── ProcessorAppHostTests.cs                ← DistributedApplicationTestingBuilder
 │
-├── PrintingMagic.ServiceDefaults/              ← copied from scraper, IsAspireSharedProject
-│   ├── PrintingMagic.ServiceDefaults.csproj
-│   └── Extensions.cs
-│
-└── PrintingMagic.Data.Contracts/               ← REFERENCE ONLY (relative, from scraper repo)
-    (not checked in here — referenced via ../../scraper/PrintingMagic.Data.Contracts/)
+└── PrintingMagic.ServiceDefaults/              ← NuGet package (in scope this feature)
+    ├── PrintingMagic.ServiceDefaults.csproj    ← NuGet metadata added
+    └── Extensions.cs
+
+(PrintingMagic.Contracts lives at TargetProjects/newversion/contracts/ — separate repo, referenced via project reference)
 ```
 
 ---
@@ -491,16 +504,16 @@ builder.AddProject<Projects.PrintingMagic_Processor>("processor")
 
 ---
 
-## 9. Data.Contracts Changes
+## 9. Contracts Changes
 
-Add the following to `TargetProjects/newversion/scraper/PrintingMagic.Data.Contracts/Contracts.V1.cs`:
+Add the following to `TargetProjects/newversion/contracts/PrintingMagic.Contracts/Events/ModelDiscoveredV1.cs`:
 
 ```csharp
 /// <summary>
 /// Published by the scraper after a model's zip blob URL is available.
 /// Consumed by PrintingMagic.Processor to create a ProcessedProduct record.
 /// </summary>
-public record ModelProcessingRequestedV1(
+public record ModelDiscoveredV1(
     int ModelId,
     int CollectionId,
     string SourceUrl,
@@ -508,7 +521,7 @@ public record ModelProcessingRequestedV1(
     DateTime DiscoveredUtc);
 ```
 
-This is an additive change — no existing types are modified (NFR-05 forward-compatibility).
+This event is moved from `PrintingMagic.Scraper.Events.Contracts` into `PrintingMagic.Contracts.Events`. Scraper code must update its namespace import — additive at the consumer side (NFR-05 forward-compatibility).
 
 ---
 
@@ -525,7 +538,9 @@ This is an additive change — no existing types are modified (NFR-05 forward-co
 | DTOs | Separate `Dto` record types for HTTP responses — entities are never serialized directly |
 | Migrations | Never delete existing migration files; additive-only for this feature's schema |
 | Timestamps | `DateTime.UtcNow` throughout; database defaults via `HasDefaultValueSql("now() at time zone 'utc'")` |
+| `UpdatedAt` on updates | Callers must explicitly set `entity.UpdatedAt = DateTime.UtcNow` before every `SaveChangesAsync` call that modifies a record. The DB default only fires on insert. |
 | MassTransit | Consumer endpoint name auto-configured via `ConfigureEndpoints(context)` — do not hardcode queue names |
+| `POST /imports/model` testing | The HTTP intake path must have at least one unit test covering the happy path (see FR-08). The consumer and HTTP handler share the same internal service logic to avoid a coverage gap. |
 
 ---
 
@@ -533,7 +548,7 @@ This is an additive change — no existing types are modified (NFR-05 forward-co
 
 | ID | Question | Resolution |
 |----|----------|------------|
-| OQ-01 | HTTP vs queue intake | **Queue (MassTransit consumer)** via `ModelProcessingRequestedV1`; HTTP endpoint remains available for manual/test use |
+| OQ-01 | HTTP vs queue intake | **Queue (MassTransit consumer)** via `ModelDiscoveredV1` (from `PrintingMagic.Contracts`); HTTP endpoint remains available for manual/test use |
 | OQ-02 | Same PostgreSQL instance or separate? | **Same `postgres` Aspire resource**, separate `processor-db` logical database |
 | OQ-03 | Aspire registration name and port | **`"processor"`** resource name; port auto-assigned by Aspire |
 
@@ -543,23 +558,23 @@ This is an additive change — no existing types are modified (NFR-05 forward-co
 
 | Req | Covered By |
 |-----|------------|
-| FR-01 | `ModelProcessingRequestedConsumer` + `POST /imports/model` route |
+| FR-01 | `ProcessModelConsumer` + `POST /imports/model` route |
 | FR-02 | `ProcessedProduct.ImagesZipBlobUrl` + `ImageEvidence` collection |
 | FR-03 | `GET /products/{id}` Minimal API route returning `ProcessedProductDto` |
 | FR-04 | All merchandising fields nullable on `ProcessedProduct` entity |
 | FR-05 | All AI provenance fields nullable on `ProcessedProduct` entity |
 | FR-06 | `ProcessingStatus` enum on `ProcessedProduct` |
 | FR-07 | `AddProject<Projects.PrintingMagic_Processor>("processor")` in AppHost |
-| FR-08 | `ProcessorAppHostTests.cs` with `DistributedApplicationTestingBuilder` |
+| FR-08 | `ProcessorAppHostTests.cs` with `DistributedApplicationTestingBuilder`; `ProcessModelConsumerTests.cs` covers `POST /imports/model` unit path |
 | FR-09 | `GalleryImage` entity with `Url`, `BackgroundFamily`, `SortOrder` |
-| FR-10 | `ModelProcessingRequestedV1` + existing `ModelImportDto`/`CollectionImportRequest` in `Data.Contracts` |
-| FR-11 | `PrintingMagic.Processor.csproj` references `Data.Contracts` via relative path |
-| FR-12 | `Data.Contracts` csproj has no cross-project references (unchanged) |
+| FR-10 | `ModelDiscoveredV1` in `PrintingMagic.Contracts` (new shared library); `ModelImportDto` in processor |
+| FR-11 | `PrintingMagic.Processor.csproj` references `PrintingMagic.Contracts` via project reference |
+| FR-12 | `PrintingMagic.Contracts` csproj has no cross-project references (standalone) |
 | NFR-01 | `net10.0`, Aspire SDK 13.2.2, MassTransit 8.4.0, EF Core 10 |
 | NFR-02 | `Given_When_Then` test naming enforced in consistency rules |
 | NFR-03 | `PrintingMagic.Processor.Tests.Integration` project with `DistributedApplicationTestingBuilder` |
 | NFR-04 | EF Core migrations in `Data/Migrations/`; `MigrateAsync()` in `Program.cs` gated to development |
-| NFR-05 | `ModelProcessingRequestedV1` is additive; no existing `Data.Contracts` types modified |
+| NFR-05 | `ModelDiscoveredV1` is new; `PrintingMagic.Contracts` is a new library — no existing types modified |
 | NFR-06 | `ImagesZipBlobUrl` + `ImageEvidence` persisted on first intake; no re-scraping needed for later reads |
 | NFR-07 | Processor has its own git repo, own DB, own process — fully independent from ApiService |
 
@@ -571,13 +586,25 @@ This is an additive change — no existing types are modified (NFR-05 forward-co
 
 | Gate | Status | Evidence |
 |------|--------|---------|
-| xUnit BDD Given/When/Then naming | ✅ Required | Consistency rule §10; `ModelProcessingRequestedConsumerTests.cs` |
+| xUnit BDD Given/When/Then naming | ✅ Required | Consistency rule §10; `ProcessModelConsumerTests.cs` |
 | Aspire integration test | ✅ Required | `ProcessorAppHostTests.cs` with `DistributedApplicationTestingBuilder` |
 | `net10.0` / Aspire SDK | ✅ | ADR-01, ADR-07 |
 
 ---
 
-## 14. Next Phase
+## 14. Cross-Repo Dev Tasks
+
+The following dev tasks span repos and must be explicitly owned before sprint planning:
+
+| Task | Repo | Owner | Notes |
+|------|------|-------|-------|
+| Publish `ModelDiscoveredV1` from scraper after zip URL stored | `scraper` | cweber | Scraper must update import from `PrintingMagic.Scraper.Events.Contracts` → `PrintingMagic.Contracts.Events` and publish on the MassTransit bus |
+| Retire `PrintingMagic.Data.Contracts` stub (or remove) | `scraper` | cweber | After `PrintingMagic.Contracts` is created and referenced |
+| Update `PrintingMagic.Scraper.csproj` to reference `PrintingMagic.Contracts` | `scraper` | cweber | Replace old `Data.Contracts` and `Scraper.Events.Contracts` project references |
+
+---
+
+## 15. Next Phase
 
 On completion of this architecture document, advance to `/finalizeplan` to consolidate all planning artifacts, run the final adversarial review, and prepare the dev-ready PR handoff.
 
